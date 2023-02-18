@@ -1,16 +1,12 @@
-from sorting import insertion_sort
+from factorial import factorial_calc
 from fibonacci_numbers import get_n_fibonacci_numbers
 from numbers_task import numbers_task
-from string_task import string_task
+from string_task import is_palindrome
 
 
 if __name__ == '__main__':
-    get_n_fibonacci_numbers()
-    numbers_task()
-    string_task()
+    # get_n_fibonacci_numbers()
+    # numbers_task()
+    is_palindrome()
 
-    arr = [9, 1, 15, 28, 6]
-    insertion_sort(arr)
-
-    print(arr)
-
+    factorial_calc()

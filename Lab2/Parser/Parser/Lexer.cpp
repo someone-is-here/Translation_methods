@@ -13,10 +13,10 @@ private:
 		NUM, DNUM, STR,
 		ID,
 		IF, ELSE, WHILE, DO, BREAK, CONTINUE,
-		LBRA, RBRA, LPAR, RPAR,
+		LPAR, RPAR, LBR, RBR,
 		PLUS, MINUS, MULTIPLY, DIVIDE, PLUSEQUAL, MINUSEQUAL, MULTIPLYEQUAL, DIVIDEEQUAL,
-		LESS, GREATER, EQUAL, LESSEQUAL, GREATEREQUAL, NOT, NOTEQUAL,
-		COLON, EF, QUOTE, 
+		LESS, GREATER, EQUAL, LESSEQUAL, GREATEREQUAL, NOT, NOTEQUAL, EQUALEQUAL,
+		COLON, EF, QUOTE, COMMA,
 		PRINT, MAX, AND, LEN, INPUT, INT,
 		FOR, IN, RANGE,
 		DEF, RETURN, ERR
@@ -32,6 +32,8 @@ private:
 		{':', COLON},
 		{'(', LPAR},
 		{')', RPAR},
+		{'[', LBR},
+		{']', RBR},
 		{'+', PLUS},
 		{'-', MINUS},
 		{'*', MULTIPLY},
@@ -41,6 +43,7 @@ private:
 		{'!', NOT},
 		{'"', QUOTE},
 		{'\'', QUOTE},
+		{',', COMMA},
 	};
 
 	std::map<string, Const> words = { 
@@ -63,7 +66,12 @@ private:
 	};
 
 	char currentSymbol;
+
+	string fileName;
 	int lineCounter;
+	int symbolCounter;
+
+	int parenthesesCounter = 0;
 
 	bool isString = false;
 	bool isU = false;
@@ -72,35 +80,62 @@ private:
 	
 public:
 	Lexer(string fileName) {
-		readFile.open(fileName);	
+		readFile.open(fileName);
+
 		lineCounter = 1;
+		symbolCounter = 0;
+		this->fileName = fileName;
+
 		getNextChar();
 	}
 	
 	void showError(string message) {
-		printf("%d line: Lexer error. %s\n", lineCounter, message.c_str());
+		printf("%s:%d:%d:error: %s\n", fileName.c_str(), lineCounter, symbolCounter, message.c_str());
 	}
-
-	void getNextChar() {
-		readFile.get(currentSymbol);
-
+	void removeComment() {
 		if (currentSymbol == '#') {
 			string str;
 			getline(readFile, str);
+
 			lineCounter += 1;
-			readFile.get(currentSymbol);
+			symbolCounter = 0;
+
+			getNextChar();
 		}
+	}
+
+	string checkParentless() {
+		if (parenthesesCounter != 0) {
+			string err = "Missmatched Parentheses";
+			this->showError(err);
+			return err;
+		}
+		parenthesesCounter = 0;
+
+		return "";
+	}
+	void getNextChar() {
+		readFile.get(currentSymbol);
+		symbolCounter += 1;
+	
+		this->removeComment();
 
 		if (readFile.eof()) {
 			currentSymbol = '\0';
 		}
 	}
+
 	Tocken getNextTocken() {
 		Tocken tocken;
 		
 		while (currentSymbol == ' ' || currentSymbol == '\n' || currentSymbol == '\t') {
 			if (currentSymbol == '\n') {
+				string check = checkParentless();
+				if (check != "") {
+					return Tocken(ERR, check);
+				}
 				lineCounter += 1;
+				symbolCounter = 0;
 			}
 			getNextChar();
 		}
@@ -176,6 +211,10 @@ public:
 				tocken.symb = NOTEQUAL;
 				getNextChar();
 			}
+			else if (tocken.symb == EQUAL && this->currentSymbol == '=') {
+				tocken.symb = EQUALEQUAL;
+				getNextChar();
+			}
 			else if (tocken.symb == PLUS && this->currentSymbol == '=') {
 				tocken.symb = PLUSEQUAL;
 				getNextChar();
@@ -199,6 +238,14 @@ public:
 					isU = false;
 				}
 			}
+
+			if (tocken.symb == LPAR) {
+				parenthesesCounter += 1;
+			}
+			else if (tocken.symb == RPAR) {
+				parenthesesCounter -= 1;
+			}
+
 			return tocken;
 
 		}
@@ -219,6 +266,20 @@ public:
 					}
 					tocken.symb = words[word];
 					isSpecialWord = true;
+
+					return tocken;
+				}
+
+				if (isString && currentSymbol == '\n') {
+					string err = "Expected \" or ' but found ";
+					err += this->currentSymbol;
+
+					this->showError(err);
+
+					tocken.symb = ERR;
+					tocken.value = err;
+
+					getNextChar();
 
 					return tocken;
 				}

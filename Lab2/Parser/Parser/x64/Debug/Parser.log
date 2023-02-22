@@ -1,0 +1,5 @@
+﻿  Lexer.cpp
+  Source.cpp
+  Generating Code...
+D:\University\Course 6\МТран\Lab2\Parser\Parser\Lexer.cpp(247): warning C4715: 'Lexer::getNextTocken': not all control paths return a value
+  Parser.vcxproj -> D:\University\Course 6\МТран\Lab2\Parser\x64\Debug\Parser.exe

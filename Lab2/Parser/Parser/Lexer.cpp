@@ -63,6 +63,7 @@ private:
 	};
 
 	char currentSymbol;
+	int lineCounter;
 
 	bool isString = false;
 	bool isU = false;
@@ -72,11 +73,12 @@ private:
 public:
 	Lexer(string fileName) {
 		readFile.open(fileName);	
+		lineCounter = 1;
 		getNextChar();
 	}
 	
 	void showError(string message) {
-		printf("Lexer error : %s\n", message.c_str());
+		printf("%d line: Lexer error. %s\n", lineCounter, message.c_str());
 	}
 
 	void getNextChar() {
@@ -85,6 +87,7 @@ public:
 		if (currentSymbol == '#') {
 			string str;
 			getline(readFile, str);
+			lineCounter += 1;
 			readFile.get(currentSymbol);
 		}
 
@@ -96,6 +99,9 @@ public:
 		Tocken tocken;
 		
 		while (currentSymbol == ' ' || currentSymbol == '\n' || currentSymbol == '\t') {
+			if (currentSymbol == '\n') {
+				lineCounter += 1;
+			}
 			getNextChar();
 		}
 		

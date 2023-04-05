@@ -1,12 +1,15 @@
 #include <iostream>
 #include <vector>
 #include <string>
-#include "Lexer.cpp"
+#include "Parser.cpp"
 
 using namespace std;
 
 int main() {
-	Lexer lex = Lexer("script.txt");
-	lex.readTockens();
+	Parser parser = Parser("script.txt");
+	parser.Parse();
+	//Lexer lexer = Lexer("script.txt");
+	//lexer.readTockens();
+
 	return 0;
 }

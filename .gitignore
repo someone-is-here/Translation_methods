@@ -2,4 +2,5 @@ Lab1/Examples/.idea/*
 Lab1/Examples/__pycache__/*
 Lab1/Examples/venv/*
 Lab2/Parser/.vs/*
-Lab3/Parser/.vs/*
+Lab2/Parser/Parser/x64/*
+Lab2/Parser/x64/*

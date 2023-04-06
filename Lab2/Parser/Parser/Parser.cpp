@@ -10,6 +10,7 @@ private:
 	enum  Kind {
 		VAR, CONSTN, CONSTD, CONSTS,
 		ADD, SUB, MULTIPLY, DIVIDE,
+		PLUSEQ,
 		LT, LE, GT, GE, EQ, 
 		SET, RANGE,
 		IF, ELIF, ELSE,
@@ -42,6 +43,7 @@ private:
 	{FOR, "FOR"},
 	{EMPTY, "EMPTY"},
 	{SEQ, "SEQ"},
+	{MAX, "MAX"},
 	{PROG, "PROG"},
 	{INT, "INT"},
 	{PRINT, "PRINT"},
@@ -144,12 +146,23 @@ public:
 
 			this->currTocken = this->lexer.getNextTocken();
 
+			if (this->currTocken.symb != Const::LPAR) {
+				this->showError("SYNTAX ERROR '(' EXPECTED!");
+			}
+
+			this->currTocken = this->lexer.getNextTocken();
 			nodeMAX->op.push_back(this->parseArithmeticExpression());
 
 			if (this->currTocken.symb != Const::COMMA) {
 				this->showError("EXPECTED COMMA IN MAX EXPRESSION");
 			}
+			this->currTocken = this->lexer.getNextTocken();
 			nodeMAX->op.push_back(this->parseArithmeticExpression());
+
+			if (this->currTocken.symb != Const::RPAR) {
+				this->showError("SYNTAX ERROR ')' EXPECTED!");
+			}
+			this->currTocken = this->lexer.getNextTocken();
 			return nodeMAX;
 		}
 	}
@@ -234,6 +247,12 @@ public:
 			nodeComp->kind = EQ;
 			nodeComp->op.push_back(this->parseArithmeticExpression());
 			n->op.push_back(nodeComp);
+		} else if (this->currTocken.symb == Const::PLUSEQUAL) {
+			this->currTocken = this->lexer.getNextTocken();
+			Node* nodePlusEq = new Node();
+			nodePlusEq->kind = PLUSEQ;
+			nodePlusEq->op.push_back(this->parseArithmeticExpression());
+			n->op.push_back(nodePlusEq);
 		}
 
 		return n;
@@ -346,7 +365,7 @@ public:
 
 			//append to node
 			n->op.push_back(ifNode);
-
+		} else if(this->currTocken.symb == Const::ELIF){
 			//same for  (might be more than one)
 			while (this->currTocken.symb == Const::ELIF) {
 				//creating node for elif
@@ -375,12 +394,13 @@ public:
 					this->currTocken = this->lexer.getNextTocken();
 					elifNode->op.push_back(this->parseStatement());
 				}
-				
+
 				//append to node
 				n->op.push_back(elifNode);
 			}
 			//same for else
-			if (this->currTocken.symb == Const::ELSE) {
+		}
+		else if (this->currTocken.symb == Const::ELSE) {
 				//new node for else
 				Node* elseNode = new Node();
 				elseNode->kind = Kind::ELSE;
@@ -402,8 +422,6 @@ public:
 				//append to node
 				n->op.push_back(elseNode);
 			}
-
-		}
 		else if (this->currTocken.symb == Const::WHILE) {
 			n->kind = Kind::WHILE;
 			this->currTocken = this->lexer.getNextTocken();
@@ -421,7 +439,9 @@ public:
 				this->showError("EXPECTED COLON AFTER IF STATEMENT!");
 			}
 			this->currTocken = this->lexer.getNextTocken();
-
+			while (this->currTocken.symb == Const::TAB) {
+				this->currTocken = this->lexer.getNextTocken();
+			}
 			n->op.push_back(this->parseStatement());
 		}
 		else if (this->currTocken.symb == Const::FOR) {

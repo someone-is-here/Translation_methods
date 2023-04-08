@@ -21,10 +21,10 @@ private:
 	};
 
 	std::map<Kind, string> symbolsKind = {
-	{VAR, "VAR"},
-	{CONSTN, "Number"},
-	{CONSTD, "Decimal Number"},
-	{CONSTS, "String"},
+	{VAR, ""},
+	{CONSTN, "INT"},
+	{CONSTD, "FLOAT"},
+	{CONSTS, "STR"},
 	{ADD, "+"},
 	{SUB, "-"},
 	{MULTIPLY, "*"},
@@ -34,7 +34,7 @@ private:
 	{GT, ">"},
 	{GE, ">="},
 	{EQ, "="},
-	{SET, "SET"},
+	{SET, "="},
 	{RANGE, "RANGE"},
 	{IF, "IF"},
 	{ELIF, "ELIF"},
@@ -50,6 +50,8 @@ private:
 	{INPUT, "INPUT"},
 	{EXPR, ""},
 	};
+
+	map<string, Kind> variables;
 
 	struct Node {
 		vector<Node*> op;
@@ -208,9 +210,9 @@ public:
 	}
 
 	Node* parseCompareExpression() {
+		this->parseQuote();
 		Node* n = this->parseArithmeticExpression();
 		this->parseQuote();
-
 		if (this->currTocken.symb == Const::LESS) {
 			this->currTocken = this->lexer.getNextTocken();
 			Node* nodeComp = new Node();
@@ -266,14 +268,38 @@ public:
 
 		Node* n = this->parseCompareExpression();
 
+		if (n->op.size() > 0 && n->kind == Kind::EXPR) {
+			for (int i = 0; i < n->op.size(); i++) {
+				if ((n->op[i])->kind == Kind::ADD || (n->op[i])->kind == Kind::SUB
+					|| (n->op[i])->kind == Kind::MULTIPLY || (n->op[i])->kind == Kind::DIVIDE) {
+					for (int j = 0; j < ((n->op[i])->op).size(); j++) {
+						if (((n->op[i])->op[j])->kind != Kind::VAR && ((n->op[i])->op[j])->kind != variables[n->op[0]->value]) {
+							this->showError("Operation " + symbolsKind[(n->op[i])->kind] + " unavailiable between " + symbolsKind[((n->op[i])->op[j])->kind] + " and " + symbolsKind[variables[n->op[0]->value]]);
+						}
+						
+						else if (((n->op[i])->op[j])->kind == Kind::VAR && variables[((n->op[i])->op[j])->value] != variables[n->op[0]->value]) {
+							this->showError("Operation " + symbolsKind[(n->op[i])->kind] + " unavailiable between " + symbolsKind[variables[((n->op[i])->op[j])->value]] + " and " + symbolsKind[variables[n->op[0]->value]]);
+						}
+					}
+				}
+			}
+		}
+
 		if (n->kind == VAR && this->currTocken.symb == Const::EQUAL) {
 			this->currTocken = this->lexer.getNextTocken();
 
 			Node* nodeExpr = new Node();
 
-			nodeExpr->kind = SET; 
+			nodeExpr->kind = SET;
 			nodeExpr->op.push_back(this->parseExpression());
-			n->op.push_back(nodeExpr);
+			if (nodeExpr->op.size() > 0 && nodeExpr->op[0]->kind == Kind::INT) {
+				variables.insert({ n->value, Kind::CONSTN });
+			}
+			else if (nodeExpr->op.size() > 0 && nodeExpr->op[0]->kind == Kind::INPUT) {
+				variables.insert({ n->value, Kind::CONSTS });
+			} else if (nodeExpr->op.size() > 0 && (nodeExpr->op[0]->kind == Kind::CONSTD || nodeExpr->op[0]->kind == Kind::CONSTN || nodeExpr->op[0]->kind == Kind::CONSTS)) {
+				variables.insert({ n->value, nodeExpr->op[0]->kind });
+			}
 		}
 		return n;
 	}
@@ -451,6 +477,7 @@ public:
 			//maybe there shoud be different parse function for expr
 			n->op.push_back(this->term());
 
+			variables.insert({ n->op[0]->value, Kind::CONSTN });
 			if (this->currTocken.symb != Const::IN) {
 				showError("Syntax error. Operator IN expected!");
 			}
@@ -522,8 +549,16 @@ public:
 		}
 	}
 	void showError(string message) {
-		cout << message << endl;
+		cout << "Error in "<< lexer.getLine() << " line, " <<lexer.getSymbolCounter() << " symbol. " << message << endl;
 		exit(-1);
+	}
+
+	int getLine() {
+		return lexer.getLine();
+	}
+
+	int getSymbolCounter() {
+		return lexer.getSymbolCounter();
 	}
 
 };

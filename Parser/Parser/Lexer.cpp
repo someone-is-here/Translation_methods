@@ -383,6 +383,12 @@ public:
 			tocken = getNextTocken();
 		}
 	}
+	int getLine() {
+		return lineCounter;
+	}
+	int getSymbolCounter() {
+		return symbolCounter;
+	}
 
 	~Lexer() {
 		readFile.close();

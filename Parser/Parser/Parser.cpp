@@ -10,7 +10,7 @@ private:
 	enum  Kind {
 		VAR, CONSTN, CONSTD, CONSTS,
 		ADD, SUB, MULTIPLY, DIVIDE,
-		PLUSEQ,
+		PLUSEQ, SUBEQ, MULTEQ, DIVEQ,
 		LT, LE, GT, GE, EQ, 
 		SET, RANGE,
 		IF, ELIF, ELSE,
@@ -165,6 +165,10 @@ public:
 				this->showError("SYNTAX ERROR ')' EXPECTED!");
 			}
 			this->currTocken = this->lexer.getNextTocken();
+			
+			if (variables[nodeMAX->op[0]->value] != variables[nodeMAX->op[1]->value]) {
+				this->showError("Operator max must be with similar types, but found " + symbolsKind[variables[nodeMAX->op[0]->value]] + " and " + symbolsKind[variables[nodeMAX->op[1]->value]]);
+			}
 			return nodeMAX;
 		}
 	}
@@ -211,7 +215,8 @@ public:
 
 	Node* parseCompareExpression() {
 		this->parseQuote();
-		Node* n = this->parseArithmeticExpression();
+		Node* n = new Node();
+		n = this->parseArithmeticExpression();
 		this->parseQuote();
 		if (this->currTocken.symb == Const::LESS) {
 			this->currTocken = this->lexer.getNextTocken();
@@ -254,6 +259,36 @@ public:
 			Node* nodePlusEq = new Node();
 			nodePlusEq->kind = PLUSEQ;
 			nodePlusEq->op.push_back(this->parseArithmeticExpression());
+			if (n->kind == VAR && variables[n->value] != nodePlusEq->op[0]->kind) {
+				this->showError("Operator += must be with similar types, but found " + symbolsKind[variables[n->value]] + " and " + symbolsKind[nodePlusEq->op[0]->kind]);
+			}
+			n->op.push_back(nodePlusEq);
+		} else if (this->currTocken.symb == Const::MINUSEQUAL) {
+			this->currTocken = this->lexer.getNextTocken();
+			Node* nodePlusEq = new Node();
+			nodePlusEq->kind = Kind::SUBEQ;
+			nodePlusEq->op.push_back(this->parseArithmeticExpression());
+			if (n->kind == VAR && variables[n->value] != nodePlusEq->op[0]->kind) {
+				this->showError("Operator -= must be with similar types, but found " + symbolsKind[variables[n->value]] + " and " + symbolsKind[nodePlusEq->op[0]->kind]);
+			}
+			n->op.push_back(nodePlusEq);
+		} else if (this->currTocken.symb == Const::MULTIPLYEQUAL) {
+			this->currTocken = this->lexer.getNextTocken();
+			Node* nodePlusEq = new Node();
+			nodePlusEq->kind = Kind::MULTEQ;
+			nodePlusEq->op.push_back(this->parseArithmeticExpression());
+			if (n->kind == VAR && variables[n->value] != nodePlusEq->op[0]->kind) {
+				this->showError("Operator *= must be with similar types, but found " + symbolsKind[variables[n->value]] + " and " + symbolsKind[nodePlusEq->op[0]->kind]);
+			}
+			n->op.push_back(nodePlusEq);
+		} else if (this->currTocken.symb == Const::DIVIDEEQUAL) {
+			this->currTocken = this->lexer.getNextTocken();
+			Node* nodePlusEq = new Node();
+			nodePlusEq->kind = Kind::DIVEQ;
+			nodePlusEq->op.push_back(this->parseArithmeticExpression());
+			if (n->kind == VAR && variables[n->value] != nodePlusEq->op[0]->kind) {
+				this->showError("Operator /= must be with similar types, but found " + symbolsKind[variables[n->value]] + " and " + symbolsKind[nodePlusEq->op[0]->kind]);
+			}
 			n->op.push_back(nodePlusEq);
 		}
 
@@ -294,12 +329,13 @@ public:
 			nodeExpr->op.push_back(this->parseExpression());
 			if (nodeExpr->op.size() > 0 && nodeExpr->op[0]->kind == Kind::INT) {
 				variables.insert({ n->value, Kind::CONSTN });
-			}
-			else if (nodeExpr->op.size() > 0 && nodeExpr->op[0]->kind == Kind::INPUT) {
+			} else if (nodeExpr->op.size() > 0 && nodeExpr->op[0]->kind == Kind::INPUT) {
 				variables.insert({ n->value, Kind::CONSTS });
 			} else if (nodeExpr->op.size() > 0 && (nodeExpr->op[0]->kind == Kind::CONSTD || nodeExpr->op[0]->kind == Kind::CONSTN || nodeExpr->op[0]->kind == Kind::CONSTS)) {
 				variables.insert({ n->value, nodeExpr->op[0]->kind });
 			}
+
+			n->op.push_back(nodeExpr);
 		}
 		return n;
 	}

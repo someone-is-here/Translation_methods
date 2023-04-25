@@ -1,13 +1,13 @@
 #include <iostream>
 #include <vector>
 #include <string>
-#include "Parser.cpp"
+#include "Compiler.cpp"
 
 using namespace std;
 
 int main() {
-	Parser parser = Parser("script.txt");
-	parser.Parse();
+	Compiler compilator = Compiler("script2.txt");
+	compilator.compile();
 
 	return 0;
 }

@@ -1,4 +1,4 @@
-number = int(input("Enter a number: "))
+number = int(input("Enter a number: ")) 
 factorial = 1
 
 if number < 0:

@@ -5,13 +5,13 @@
 
 using namespace std;
 
-class Parser {
-private:
+class Data {
+protected: 
 	enum  Kind {
 		VAR, CONSTN, CONSTD, CONSTS,
 		ADD, SUB, MULTIPLY, DIVIDE,
 		PLUSEQ, SUBEQ, MULTEQ, DIVEQ,
-		LT, LE, GT, GE, EQ, 
+		LT, LE, GT, GE, EQ, NEQ,
 		SET, RANGE,
 		IF, ELIF, ELSE,
 		WHILE, FOR,
@@ -19,6 +19,10 @@ private:
 		INT, PRINT, INPUT, MAX,
 		EXPR
 	};
+	vector<Kind> types = { CONSTN, CONSTD, CONSTS};
+	vector<Kind> rules = { LT, LE, GT, GE, EQ, NEQ };
+	vector<Kind> operations = { ADD, SUB, MULTIPLY, DIVIDE};
+	vector<Kind> operationsEq = { PLUSEQ, SUBEQ, MULTEQ, DIVEQ };
 
 	std::map<Kind, string> symbolsKind = {
 	{VAR, ""},
@@ -50,20 +54,45 @@ private:
 	{INPUT, "INPUT"},
 	{EXPR, ""},
 	};
-
-	map<string, Kind> variables;
-
 	struct Node {
 		vector<Node*> op;
 		string value;
 		Kind kind;
 	};
+};
 
+class Parser: public Data {
+private:
+	map<string, Kind> variables;
+	int currentTab = 0;
 	Lexer lexer;
 	Tocken currTocken;
-public: 
+
+public:
+	Parser() {}
 	Parser(string filename) {
 		lexer = Lexer(filename);
+	}
+	Parser(const Parser& parser) {
+		this->currTocken = parser.currTocken;
+		this->lexer = parser.lexer;
+		this->symbolsKind = parser.symbolsKind;
+		this->variables = parser.variables;
+		this->tabs = parser.tabs;
+	}
+
+	Parser& operator=(const Parser& parser) {
+		if (this == &parser) {
+			return *this;
+		}
+
+		this->currTocken = parser.currTocken;
+		this->lexer = parser.lexer;
+		this->symbolsKind = parser.symbolsKind;
+		this->variables = parser.variables;
+		this->tabs = parser.tabs;
+
+		return *this;
 	}
 	Node* createNode(Kind kind, Node* op1) {
 		Node* newNode = new Node();
@@ -251,7 +280,7 @@ public:
 		}	else if (this->currTocken.symb == Const::NOTEQUAL) {
 			this->currTocken = this->lexer.getNextTocken();
 			Node* nodeComp = new Node();
-			nodeComp->kind = EQ;
+			nodeComp->kind = NEQ;
 			nodeComp->op.push_back(this->parseArithmeticExpression());
 			n->op.push_back(nodeComp);
 		} else if (this->currTocken.symb == Const::PLUSEQUAL) {
@@ -400,48 +429,61 @@ public:
 		if (this->currTocken.symb == Const::IF) {
 			n->kind = Kind::IF;
 			//if node
-			Node* ifNode = new Node();
-			ifNode->kind = Kind::IF;
+			//Node* ifNode = new Node();
+			n->kind = Kind::IF;
 
 			this->currTocken = this->lexer.getNextTocken();
 
 			//parse expression
 			if (this->currTocken.symb == Const::LPAR) {
-				ifNode->op.push_back(this->parseParentExpression());
+				n->op.push_back(this->parseParentExpression());
 			}
 			else {
-				ifNode->op.push_back(this->parseExpression());
+				n->op.push_back(this->parseExpression());
 			}
 			//checks if a colon is present
 			if (this->currTocken.symb != Const::COLON) {
 				this->showError("EXPECTED COLON AFTER IF STATEMENT!");
 			}
-
+			if (this->currentTab != 0) {
+				n->op.push_back(this->parseStatement());
+				this->currentTab = 0;
+			}
 			//parse statement
 			this->currTocken = this->lexer.getNextTocken();
-
-			while (this->currTocken.symb == Const::TAB) {
-				this->currTocken = this->lexer.getNextTocken();
-				ifNode->op.push_back(this->parseStatement());
+			int counter = 0;
+			int tabCount = 0;
+			while (true) {
+				while (this->currTocken.symb == Const::TAB) {
+					this->currTocken = this->lexer.getNextTocken();
+					counter++;
+				}
+				if(tabCount==0) tabCount = counter;
+				if (tabCount != counter) {
+					this->currentTab = counter;
+					break;
+				}
+				n->op.push_back(this->parseStatement());
+				if (counter == 0) break;
+				counter = 0;
 			}
-
 			//append to node
-			n->op.push_back(ifNode);
+			//n->op.push_back(n);
 		} else if(this->currTocken.symb == Const::ELIF){
 			//same for  (might be more than one)
 			while (this->currTocken.symb == Const::ELIF) {
 				//creating node for elif
-				Node* elifNode = new Node();
-				elifNode->kind = Kind::ELIF;
+				//Node* elifNode = new Node();
+				n->kind = Kind::ELIF;
 
 				this->currTocken = this->lexer.getNextTocken();
 
 				//parse expression
 				if (this->currTocken.symb == Const::LPAR) {
-					elifNode->op.push_back(this->parseParentExpression());
+					n->op.push_back(this->parseParentExpression());
 				}
 				else {
-					elifNode->op.push_back(this->parseExpression());
+					n->op.push_back(this->parseExpression());
 				}
 
 				//checks if a colon is present
@@ -452,20 +494,39 @@ public:
 				//parse statement
 				this->currTocken = this->lexer.getNextTocken();
 
-				while (this->currTocken.symb == Const::TAB) {
+			/*	while (this->currTocken.symb == Const::TAB) {
 					this->currTocken = this->lexer.getNextTocken();
-					elifNode->op.push_back(this->parseStatement());
+					n->op.push_back(this->parseStatement());
+				}*/
+				if (this->currentTab != 0) {
+					n->op.push_back(this->parseStatement());
+					this->currentTab = 0;
 				}
-
+				int counter = 0;
+				int tabCount = 0;
+				while (true) {
+					while (this->currTocken.symb == Const::TAB) {
+						this->currTocken = this->lexer.getNextTocken();
+						counter++;
+					}
+					if (tabCount == 0) tabCount = counter;
+					if (tabCount != counter) {
+						this->currentTab = counter;
+						break;
+					}
+					n->op.push_back(this->parseStatement());
+					if (counter == 0) break;
+					counter = 0;
+				}
 				//append to node
-				n->op.push_back(elifNode);
+				//n->op.push_back(n);
 			}
 			//same for else
 		}
 		else if (this->currTocken.symb == Const::ELSE) {
 				//new node for else
-				Node* elseNode = new Node();
-				elseNode->kind = Kind::ELSE;
+				//Node* elseNode = new Node();
+				n->kind = Kind::ELSE;
 
 				this->currTocken = this->lexer.getNextTocken();
 				//checks if a colon is present
@@ -473,16 +534,36 @@ public:
 					this->showError("EXPECTED COLON AFTER IF STATEMENT!");
 				}
 				//parse statement
-				this->currTocken = this->lexer.getNextTocken();
-
-
-				while (this->currTocken.symb == Const::TAB) {
+				//this->currTocken = this->lexer.getNextTocken();
+				
+				/*while (this->currTocken.symb == Const::TAB) {
 					this->currTocken = this->lexer.getNextTocken();
-					elseNode->op.push_back(this->parseStatement());
+					n->op.push_back(this->parseStatement());
+				}*/
+				//parse statement
+				this->currTocken = this->lexer.getNextTocken();
+				int counter = 0;
+				int tabCount = 0;
+				while (true) {
+					while (this->currTocken.symb == Const::TAB) {
+						this->currTocken = this->lexer.getNextTocken();
+						counter++;
+					}
+					if (tabCount == 0) tabCount = counter;
+					if (tabCount != counter) {
+						this->currentTab = counter;
+						break;
+					}
+					n->op.push_back(this->parseStatement());
+					if (this->currentTab == counter) {
+						n->op.push_back(this->parseStatement());
+						this->currentTab = 0;
+					}
+					if (counter == 0) break;
+					counter = 0;
 				}
-
 				//append to node
-				n->op.push_back(elseNode);
+				//n->op.push_back(elseNode);
 			}
 		else if (this->currTocken.symb == Const::WHILE) {
 			n->kind = Kind::WHILE;
@@ -500,11 +581,35 @@ public:
 			if (this->currTocken.symb != Const::COLON) {
 				this->showError("EXPECTED COLON AFTER IF STATEMENT!");
 			}
-			this->currTocken = this->lexer.getNextTocken();
-			while (this->currTocken.symb == Const::TAB) {
+			//this->currTocken = this->lexer.getNextTocken();
+			//
+			/*while (this->currTocken.symb == Const::TAB) {
 				this->currTocken = this->lexer.getNextTocken();
+				n->op.push_back(this->parseStatement());
+			}*/
+			if (this->currentTab != 0) {
+				n->op.push_back(this->parseStatement());
+				this->currentTab = 0;
 			}
-			n->op.push_back(this->parseStatement());
+			//parse statement
+			this->currTocken = this->lexer.getNextTocken();
+			int counter = 0;
+			int tabCount = 0;
+			while (true) {
+				while (this->currTocken.symb == Const::TAB) {
+					this->currTocken = this->lexer.getNextTocken();
+					counter++;
+				}
+				if (tabCount == 0) tabCount = counter;
+				while (tabCount != counter) {
+					this->currentTab = counter;
+					n->op.push_back(this->parseStatement());
+					break;
+				}
+				n->op.push_back(this->parseStatement());
+				if (counter == 0) break;
+				counter = 0;
+			}
 		}
 		else if (this->currTocken.symb == Const::FOR) {
 			n->kind = Kind::FOR;
@@ -521,12 +626,35 @@ public:
 
 			n->op.push_back(this->parseStatementFor());
 
-			this->currTocken = this->lexer.getNextTocken();
+			//this->currTocken = this->lexer.getNextTocken();
 
-			while (this->currTocken.symb == Const::TAB) {
+			/*while (this->currTocken.symb == Const::TAB) {
 				this->currTocken = this->lexer.getNextTocken();
 				n->op.push_back(this->parseStatement());
+			}*/
+			if (this->currentTab != 0) {
+				n->op.push_back(this->parseStatement());
+				this->currentTab = 0;
 			}
+			//parse statement
+			this->currTocken = this->lexer.getNextTocken();
+			int counter = 0;
+			int tabCount = 0;
+			while (true) {
+				while (this->currTocken.symb == Const::TAB) {
+					this->currTocken = this->lexer.getNextTocken();
+					counter++;
+				}
+				if (tabCount == 0) tabCount = counter;
+				if (tabCount != counter) {
+					this->currentTab = counter;
+					break;
+				}
+				n->op.push_back(this->parseStatement());
+				if (counter == 0) break;
+				counter = 0;
+			}
+
 		}
 		else if (this->currTocken.symb == Const::SEMICOLON) {
 			//; do nothing
@@ -543,6 +671,10 @@ public:
 				n->op.push_back(parseStatement());
 			}
 			this->currTocken = this->lexer.getNextTocken();
+			while (this->currTocken.symb == Const::TAB) {
+				this->currTocken = this->lexer.getNextTocken();
+			}
+			n->op.push_back(this->parseStatement());
 		}
 		else {
 			n->kind = EXPR;
@@ -564,8 +696,6 @@ public:
 		while (this->currTocken.symb != Const::EF) {
 			node->op.push_back(this->parseStatement());
 		}
-		cout << "Show tree: " << endl;
-		showTree(node);
 		
 		return node;
 	}
@@ -595,6 +725,10 @@ public:
 
 	int getSymbolCounter() {
 		return lexer.getSymbolCounter();
+	}
+
+	Kind getType(string var) {
+		return variables[var];
 	}
 
 };

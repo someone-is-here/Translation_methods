@@ -187,7 +187,6 @@ public:
 		}
 		
 		if (readFile.eof() || currentSymbol == '\0') {
-			cout << "End" << endl;
 			tocken.symb = EF;
 			return tocken;
 		}
@@ -389,7 +388,6 @@ public:
 	int getSymbolCounter() {
 		return symbolCounter;
 	}
-
 	~Lexer() {
 		readFile.close();
 	}
